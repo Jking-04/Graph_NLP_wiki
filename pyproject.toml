@@ -1,0 +1,15 @@
+[project]
+name = "graph-nlp-wiki"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "matplotlib>=3.11.1",
+    "networkx>=3.6.1",
+    "requests>=2.34.2",
+    "spacy>=3.8.14",
+    "wikipedia>=1.4.0",
+    "wikipedia-api>=0.15.0",
+]
