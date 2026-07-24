@@ -5,8 +5,13 @@ import spacy
 from itertools import combinations
 import networkx as nx
 import matplotlib.pyplot as plt
+import os
 
 nlp = spacy.load('en_core_web_sm')
+
+PROJECT_NAME = "Graph_NLP_wiki"
+EMAIL = os.getenv("WIKIMEDIA_API_EMAIL")
+
 
 def url_to_title(http_url):
     path = urlparse(http_url).path
@@ -14,12 +19,13 @@ def url_to_title(http_url):
     return unquote(title)
 
 def scrape_wiki(http_url):
-    wiki_wiki = wikipediaapi.Wikipedia(user_agent='Graph_NLP_wiki (example_email@email.com)', language='en')
+    wiki_wiki = wikipediaapi.Wikipedia(
+        user_agent=f'{PROJECT_NAME} ({EMAIL})' if EMAIL else PROJECT_NAME,
+        language='en'
+        )
 
     title = url_to_title(http_url)
-
     page_py = wiki_wiki.page(title=title)
-
     return page_py.text
 
 def iter_sentences(text):
