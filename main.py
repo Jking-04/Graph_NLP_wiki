@@ -7,11 +7,28 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import os
 
+from lemminflect import getLemma
+
+
+
 nlp = spacy.load('en_core_web_sm')
+
 
 PROJECT_NAME = "Graph_NLP_wiki"
 EMAIL = os.getenv("WIKIMEDIA_API_EMAIL")
 
+print("spaCy version:", spacy.__version__)
+print("Model:", nlp.meta["name"])
+print("Model version:", nlp.meta["version"])
+
+print(nlp.pipe_names)
+print(nlp.get_pipe("lemmatizer").mode)
+
+class edge():
+    def __init__(self,subj,rel,obj):
+        self.subj = subj 
+        self.rel = rel
+        self.obj = obj
 
 def url_to_title(http_url):
     path = urlparse(http_url).path
@@ -36,36 +53,53 @@ def iter_sentences(text):
 
 def build_graph_count(text):
     nodes = set()
-    edge_count = {}
+    edges = []
+    entity_map = {}
 
     for sentence in iter_sentences(text):
         named_entities = sentence.ents
-        allowed = ["PERSON","ORG"]
-        filtered_entities = [ent for ent in named_entities if ent.label_ in allowed]
+        #allowed = ["PERSON","ORG"]
 
-        if(len(filtered_entities)>=2):
-            for node in filtered_entities:
-                nodes.add(node.text)
-            for entity_pairs in combinations(filtered_entities,2):
-                key = tuple(sorted([entity_pairs[0].text,entity_pairs[1].text]))
+        #filtered_entities = [ent for ent in named_entities if ent.label_ in allowed]
+        filtered_entities = named_entities
 
-                edge_count[key] = edge_count.get(key,0)+1
-        elif(len(filtered_entities)==1):
-            nodes.add(filtered_entities[0])
+        for node in filtered_entities:
+            nodes.add(node.text.strip().casefold())
+            entity_map[node.root] = node.text.strip().casefold()
 
-    return nodes,edge_count
+        for token in sentence:
+            if token.pos_ == "VERB":
+                rel = getLemma(token.text,upos="VERB")[0]
 
-def build_graph_object(nodes,edge_count):
-    G = nx.Graph()
+                obj = None
+                subj = None
 
+                [child for child in token.children]
+                for child in token.children:
+                    if child in entity_map.keys():
+                    
+                        if child.dep_ in ("nsubj", "nsubjpass"):
+                            subj = entity_map[child]
+                        
+                        elif child.dep_ in ("dobj", "pobj", "attr"):
+                            obj = entity_map[child]
+
+                if (subj and obj):
+                    new_edge = edge(subj,rel,obj)
+                    edges.append(new_edge)
+
+        
+
+    return nodes,edges
+
+def build_graph_object(nodes,edges):
+    G = nx.DiGraph()
+    
     for node in nodes:
         G.add_node(node)
 
-    for edge_key,edge_val in edge_count.items():
-        G.add_node(edge_key[0])
-        G.add_node(edge_key[1])
-
-        G.add_edge(edge_key[0],edge_key[1],count = edge_val)
+    for edge in edges:
+        G.add_edge(edge.subj,edge.obj,rel=edge.rel)
 
     return G
         
@@ -83,16 +117,19 @@ def display_graph(graph):
     # Adjust the layout for better spacing
     pos = nx.spring_layout(graph, seed=42, k=1.5)
 
-    labels = nx.get_edge_attributes(graph, 'count')
+    labels = nx.get_edge_attributes(graph, 'rel')
     nx.draw(graph, pos, with_labels=True, font_weight='bold', node_size=700, node_color=node_colors, font_size=8, arrowsize=10)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=labels, font_size=8)
     plt.show()
 
 def main():
-    url = "https://en.wikipedia.org/wiki/Python_(programming_language)"
-    text = scrape_wiki(url)
-    nodes,edge_count = build_graph_count(text)
-    graph = build_graph_object(nodes=nodes,edge_count=edge_count)
+    #url = "https://en.wikipedia.org/wiki/Python_(programming_language)"
+    #text = scrape_wiki(url)
+
+    text = "Joe Smith called London. Joe Smith helps Jane. Craig loves London. Bob hated London. "
+
+    nodes,edges = build_graph_count(text)
+    graph = build_graph_object(nodes=nodes,edges=edges)
     display_graph(graph=graph)
 
 if __name__ == "__main__":
