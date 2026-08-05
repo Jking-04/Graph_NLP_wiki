@@ -2,6 +2,19 @@ def iter_sentences(doc):
     for sentence in doc.sents:
         yield sentence
 
+def search_prep_phrases(entity_map,token):
+    results = []
+    for child in token.children:
+        if child.dep_ == "prep":
+            prep = child.text
+            for child2 in child.children:
+                if child2.dep_ == "pobj":
+                    if child2 in entity_map:
+                        results.append((child.text,entity_map[child2]))
+                    else:
+                        results.append((child.text,child2.text))
+    return results
+
 def find_conjunctions(token,entity_map,token_list,compounds = None):
     if compounds == None:
         compounds=[]
@@ -20,9 +33,15 @@ def find_conjunctions(token,entity_map,token_list,compounds = None):
             else:
                 effective_compounds = compounds
 
-            token_list.append(" ".join(effective_compounds + [entity_map[child]]))
+            prep_results = search_prep_phrases(entity_map,child)
+            if prep_results:
+                for prep,pobj in prep_results:
+                        token_list.append(" ".join(effective_compounds + [entity_map[child]])+"_"+prep+"_"+pobj)
+            else:
+                token_list.append(" ".join(effective_compounds + [entity_map[child]]))
 
             if effective_compounds == []:
                 effective_compounds = None
 
             find_conjunctions(child,entity_map,token_list,effective_compounds)
+

@@ -1,5 +1,5 @@
 from lemminflect import getLemma
-from python_code.utils import find_conjunctions
+from python_code.utils import find_conjunctions,search_prep_phrases
 
 def identify_clause_components(sentence):
     clause_constituents = {
@@ -49,23 +49,41 @@ def find_relations(sentence,entity_map,clause):
                 subjs = find_deps(token,entity_map,("nsubj", "nsubjpass"))
                 objs = find_deps(token,entity_map,("dobj", "pobj"))
 
+                v_prep_results = search_prep_phrases(entity_map,token)
+
                 for subj in subjs:
                     for obj in objs:
-                        print(f"{subj}:{rel}:{obj}")
+                        if v_prep_results:
+                            for v_prep,v_pobj in v_prep_results:
+                                print(f"{subj}:{rel}:{obj}_{v_prep}_{v_pobj}")
+                        else:
+                            print(f"{subj}:{rel}:{obj}")
 
             if clause == "SVC":
                 subjs = find_deps(token,entity_map,("nsubj", "nsubjpass"))
                 attrs = find_deps(token,entity_map,("attr"))
+
+                v_prep_results = search_prep_phrases(entity_map,token)
                             
                 for subj in subjs:
                     for attr in attrs:
-                        print(f"{subj}:{rel}:{attr}")
+                        if v_prep_results:
+                            for v_prep,v_pobj in v_prep_results:
+                                print(f"{subj}:{rel}_{v_prep}:{attr}")
+                        else:
+                            print(f"{subj}:{rel}:{attr}")
 
             if clause == "SV":
                 subjs = find_deps(token,entity_map,("nsubj", "nsubjpass"))
-                
+                v_prep_results = search_prep_phrases(entity_map,token)
+
                 for subj in subjs:
-                    print(f"{subj}:{rel}")
+                    
+                    if v_prep_results:
+                        for v_prep,v_pobj in v_prep_results:
+                            print(f"{subj}:{rel}_{v_prep}:{v_pobj}")
+                    else:
+                        print(f"{subj}:{rel}")
     print("\n")
 
 def find_deps(token,entity_map,dep_List):
@@ -74,7 +92,13 @@ def find_deps(token,entity_map,dep_List):
     for child in (token.children):
         if child in entity_map:                 
             if child.dep_ in dep_List:
-                found.append(entity_map[child])
+                prep_results = search_prep_phrases(entity_map,child)
+                if prep_results:
+                    for prep,pobj in prep_results:
+                        found.append(entity_map[child]+"_"+prep+"_"+pobj)
+                else:
+                    found.append(entity_map[child])
+
                 find_conjunctions(child,entity_map,found)
 
     return found 

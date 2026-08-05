@@ -27,7 +27,7 @@ class edge():
 
 
 def main():
-    url = "https://en.wikipedia.org/wiki/Gustaf_Adolf_Boltenstern_Jr."
+    url = "https://en.wikipedia.org/wiki/Thomas_Brenchley"
     text = scrape_wiki(url)
 
     doc = text_preprocess(nlp,text)
