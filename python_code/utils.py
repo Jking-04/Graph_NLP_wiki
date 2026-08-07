@@ -13,6 +13,7 @@ def search_prep_phrases(entity_map,token):
                         results.append((child.text,entity_map[child2]))
                     else:
                         results.append((child.text,child2.text))
+
     return results
 
 def find_conjunctions(token,entity_map,token_list,compounds = None):

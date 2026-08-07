@@ -1,5 +1,149 @@
 from lemminflect import getLemma
 from python_code.utils import find_conjunctions,search_prep_phrases
+from python_code.entities import extract_entities
+
+from python_code.data_classes import VerbFrame,Entity
+
+
+def test_search_prep_phrases(token):
+    results = []
+    for child in token.children:
+        if child.dep_ == "prep":
+            prep = child.text
+            for child2 in child.children:
+                if child2.dep_ == "pobj":
+                        results.append((prep,token_to_entity(child2)))
+
+    return results
+
+def get_conjuctions(token,token_list):
+    for child in token.children:
+        if child.dep_ == "conj":
+            token_list.append(child)
+            get_conjuctions(child,token_list)
+
+def get_compounds(token):
+    compounds = []
+    for child in token.children:
+        if child.dep_ == "compound":
+            compounds.append(child.text)
+    return compounds
+
+def get_negations(token):
+    for child in token.children:
+        if child.dep_ == "neg":
+            return True
+    return False
+
+def token_to_entity(token):
+    entity = Entity(
+        text = token.text,
+        compounds=get_compounds(token),
+        prep_phrases= test_search_prep_phrases(token)
+    )
+    return entity
+
+def get_subjs(token):
+    subjs = []
+    for child in token.children:
+        if child.dep_ in ("nsubj", "nsubjpass"):
+            conjs = [child]
+            get_conjuctions(child,conjs)
+            subjs = [token_to_entity(t) for t in conjs]
+    return subjs
+
+def get_objs(token):
+    dobjs = []
+    iobjs = []
+    for child in token.children:
+        if child.dep_ in ("dobj","pobj"):
+            conjs = [child]
+            get_conjuctions(child,conjs)
+            dobjs = [token_to_entity(t) for t in conjs]
+
+        if child.dep_ in ("iobj"):
+            conjs = [child]
+            get_conjuctions(child,conjs)
+            iobjs = [token_to_entity(t) for t in conjs]
+
+    return dobjs,iobjs
+
+def get_attrs(token):
+    attrs = []
+    for child in token.children:
+        if child.dep_ in ("attr"):
+            conjs = [child]
+            get_conjuctions(child,conjs)
+            attrs = [token_to_entity(t) for t in conjs]
+    return attrs
+
+def get_obj_comps(token):
+    attrs = []
+    for child in token.children:
+        if child.dep_ in ("xcomp"):
+            conjs = [child]
+            get_conjuctions(child,conjs)
+            attrs = [token_to_entity(t) for t in conjs]
+    return attrs
+
+def is_predicate(token):
+    if token.dep_ == "conj":
+        return False
+    
+    if token.pos_ == "VERB":
+        return True
+
+    if token.pos_ == "AUX" and token.dep_ == "ROOT":
+        return True
+
+    return False
+
+def build_verb_frames(sentnece):
+    frames = []
+
+    for token in sentnece:
+        if is_predicate(token):
+
+            verbs = [token]
+            get_conjuctions(token,verbs)
+
+            subjs = []
+            attrs=[]
+            dobjs = []
+            iobjs = []
+            obj_comp = []
+
+            for potential_verb in verbs:
+                if potential_verb.pos_ in ("VERB","AUX"):
+                    verb = potential_verb
+                    subjs = get_subjs(verb) or subjs
+
+                    if (
+                        not subjs
+                        and verb.dep_ in {"advcl", "xcomp"}
+                    ):
+                        subjs = get_subjs(verb.head)
+
+                    new_dobjs,new_iobjs = get_objs(verb)
+                    dobjs = new_dobjs or dobjs
+                    iobjs = new_iobjs or iobjs
+
+                    attrs = get_attrs(verb) or attrs
+                    obj_comp = get_obj_comps(verb) or obj_comp
+
+                    frames.append(
+                        VerbFrame(
+                            verb.text + " "+ str(verb.dep_),
+                            negation=get_negations(verb),
+                            subjects=subjs,
+                            objects=dobjs,
+                            i_objects=iobjs,
+                            object_compliments=obj_comp,
+                            attributes=attrs,
+                            prep_phrases=test_search_prep_phrases(verb)
+                        )
+                    )
+    return frames
 
 def identify_clause_components(sentence):
     clause_constituents = {

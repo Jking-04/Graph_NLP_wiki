@@ -10,7 +10,7 @@ from python_code.read_wikipedia import scrape_wiki
 from python_code.entities import extract_entities
 from python_code.preprocess import text_preprocess
 from python_code.utils import iter_sentences
-from python_code.realtions import find_relations,identify_clause_components,determine_clause
+from python_code.realtions import find_relations,identify_clause_components,determine_clause,build_verb_frames
 
 from pyvis.network import Network
 from fastcoref import spacy_component
@@ -34,7 +34,8 @@ def main():
 
     for sentence in iter_sentences(doc):
         print(sentence)
-
+        
+        print(build_verb_frames(sentence))
         ent_map = extract_entities(sentence)
 
         clause_components = identify_clause_components(sentence)
@@ -42,6 +43,7 @@ def main():
         print(clause)
                 
         find_relations(sentence,ent_map,clause)
+        
     
     #text = "Joe Smith called London. Joe Smith helps Jane. Craig loves London. Bob hated London. The Cat ate The Mouse "
 
