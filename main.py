@@ -11,8 +11,9 @@ from python_code.entities import extract_entities
 from python_code.preprocess import text_preprocess
 from python_code.utils import iter_sentences
 from python_code.realtions import find_relations,identify_clause_components,determine_clause,build_verb_frames
+from python_code.build_graph import find_all_entities,add_node,display_graph,build_relations
 
-from pyvis.network import Network
+
 from fastcoref import spacy_component
 
 nlp = spacy.load('en_core_web_sm')
@@ -32,25 +33,28 @@ def main():
 
     doc = text_preprocess(nlp,text)
 
+    graph = nx.DiGraph()
+
     for sentence in iter_sentences(doc):
         print(sentence)
+
+        verb_frames = build_verb_frames(sentence)
+        enteties = find_all_entities(verb_frames)
+
+        print("verb_frames\n")
+        print(verb_frames)
+
+        print("entities\n")
+        print(enteties)
+
+        add_node(graph,enteties)
         
-        print(build_verb_frames(sentence))
+        for verb_frame in verb_frames:
+            build_relations(graph,verb_frame)
+
         print("\n")
-        #ent_map = extract_entities(sentence)
-
-        #clause_components = identify_clause_components(sentence)
-        #clause = determine_clause(clause_components)
-        #print(clause)
-                
-        #find_relations(sentence,ent_map,clause)
         
-    
-    #text = "Joe Smith called London. Joe Smith helps Jane. Craig loves London. Bob hated London. The Cat ate The Mouse "
-
-    #nodes,edges = build_graph_count(text)
-    #graph = build_graph_object(nodes=nodes,edges=edges)
-    #display_graph(graph=graph)
+    display_graph(graph=graph)
 
 if __name__ == "__main__":
     main()

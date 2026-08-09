@@ -1,35 +1,105 @@
-from python_code.data_classes import Entity,VerbFrame 
-def determine_cluase(vf:VerbFrame):
+from python_code.data_classes import Entity,VerbFrame
+import networkx as nx
+from pyvis.network import Network
+
+def find_all_nested_entities(Ent:Entity):
+    entities = [Ent]
+
+    for _,pobj in Ent.prep_phrases:
+        entities.extend(find_all_nested_entities(pobj))
+
+    return entities
+
+def find_all_entities(vf_list: list[VerbFrame]):
+    entities = []
+
+    for vf in vf_list:
+        for subj in vf.subjects:
+            entities.extend(find_all_nested_entities(subj))
+
+        for obj in vf.objects:
+            entities.extend(find_all_nested_entities(obj))
+
+        for iobj in vf.i_objects:
+            entities.extend(find_all_nested_entities(iobj))
+
+        for comp in vf.object_compliments:
+            entities.extend(find_all_nested_entities(comp))
+
+        for attr in vf.attributes:
+            entities.extend(find_all_nested_entities(attr))
+
+        for _, pobj in vf.prep_phrases:
+            entities.extend(find_all_nested_entities(pobj))
+
+    return entities
+
+def add_node(graph:nx.digraph,entity_list:list[Entity]):
+    for ent in entity_list:
+        graph.add_node(
+            ent.id,
+            label = ent.node_name()
+        )
+
+def add_edge(graph:nx.digraph,origin_id,target_id,rel):
+    graph.add_edge(origin_id,target_id,label=rel)
+
+def determine_clause(vf:VerbFrame):
     if vf.attributes:
         return "SVC"
-    elif vf.i_objects and vf.object:
+    elif vf.i_objects and vf.objects:
         return "SVOO"
-    elif vf.object_compliments and vf.object:
+    elif vf.object_compliments and vf.objects:
         return "SVOC"
-    elif vf.object:
+    elif vf.objects:
         return "SVO"
     else:
         return "SV"
 
-def build_relations(vf:VerbFrame):
-    clause_type = determine_cluase(vf)
-
-    nodes = []
-    edges = []
+def build_relations(graph: nx.DiGraph, vf: VerbFrame):
+    clause_type = determine_clause(vf)
 
     if clause_type == "SVC":
-        pass
+        rel = vf.verb
+        for subj in vf.subjects:
+            for attr in vf.attributes:
+                add_edge(graph, subj.id, attr.id, rel)
+
     elif clause_type == "SVOO":
-        pass
+        subj = vf.subjects[0]
+        obj = vf.objects[0]
+        iobj = vf.i_objects[0]
+        rel = vf.verb
+
+        add_edge(graph, subj.id, obj.id, rel)
+        add_edge(graph, obj.id, iobj.id, "to")
+
     elif clause_type == "SVOC":
-        pass
+        subj = vf.subjects[0]
+        obj = vf.objects[0]
+        comp = vf.object_compliments[0]
+        rel = vf.verb
+
+        add_edge(graph, subj.id, obj.id, rel)
+        add_edge(graph, obj.id, comp.id, "complement")
+
     elif clause_type == "SVO":
-        pass
-    elif clause_type == "SV":
+        rel = vf.verb
 
         for subj in vf.subjects:
-            
-        pass
+            for obj in vf.objects:
+                add_edge(graph, subj.id, obj.id, rel)
+
+    elif clause_type == "SV":
+        subj = vf.subjects[0]
+
+        if not vf.prep_phrases:
+            return
+
+        for prep, entity in vf.prep_phrases:
+            rel = f"{vf.verb}_{prep}"
+            add_edge(graph, subj.id, entity.id, rel)
+
     else:
         print(f"not recognized clause_type {clause_type}")
 
