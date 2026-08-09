@@ -36,13 +36,14 @@ def main():
         print(sentence)
         
         print(build_verb_frames(sentence))
-        ent_map = extract_entities(sentence)
+        print("\n")
+        #ent_map = extract_entities(sentence)
 
-        clause_components = identify_clause_components(sentence)
-        clause = determine_clause(clause_components)
-        print(clause)
+        #clause_components = identify_clause_components(sentence)
+        #clause = determine_clause(clause_components)
+        #print(clause)
                 
-        find_relations(sentence,ent_map,clause)
+        #find_relations(sentence,ent_map,clause)
         
     
     #text = "Joe Smith called London. Joe Smith helps Jane. Craig loves London. Bob hated London. The Cat ate The Mouse "

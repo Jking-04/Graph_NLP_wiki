@@ -1,3 +1,38 @@
+from python_code.data_classes import Entity,VerbFrame 
+def determine_cluase(vf:VerbFrame):
+    if vf.attributes:
+        return "SVC"
+    elif vf.i_objects and vf.object:
+        return "SVOO"
+    elif vf.object_compliments and vf.object:
+        return "SVOC"
+    elif vf.object:
+        return "SVO"
+    else:
+        return "SV"
+
+def build_relations(vf:VerbFrame):
+    clause_type = determine_cluase(vf)
+
+    nodes = []
+    edges = []
+
+    if clause_type == "SVC":
+        pass
+    elif clause_type == "SVOO":
+        pass
+    elif clause_type == "SVOC":
+        pass
+    elif clause_type == "SVO":
+        pass
+    elif clause_type == "SV":
+
+        for subj in vf.subjects:
+            
+        pass
+    else:
+        print(f"not recognized clause_type {clause_type}")
+
 def build_graph_count(text):
     nodes = set()
     edges = []

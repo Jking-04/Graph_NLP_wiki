@@ -1,3 +1,9 @@
+def build_chunk_map(sentence):
+    return {
+        chunk.root: chunk.text
+        for chunk in sentence.noun_chunks
+    }
+
 def iter_sentences(doc):
     for sentence in doc.sents:
         yield sentence

@@ -1,18 +1,19 @@
 from lemminflect import getLemma
-from python_code.utils import find_conjunctions,search_prep_phrases
-from python_code.entities import extract_entities
+from python_code.utils import find_conjunctions,search_prep_phrases,build_chunk_map
+from python_code.entities import extract_entities,NodeRegistry
 
 from python_code.data_classes import VerbFrame,Entity
 
+node_registry = NodeRegistry()
 
-def test_search_prep_phrases(token):
+def test_search_prep_phrases(token,chunk_map):
     results = []
     for child in token.children:
         if child.dep_ == "prep":
             prep = child.text
             for child2 in child.children:
                 if child2.dep_ == "pobj":
-                        results.append((prep,token_to_entity(child2)))
+                    results.append((prep,token_to_entity(child2,chunk_map)))
 
     return results
 
@@ -29,61 +30,94 @@ def get_compounds(token):
             compounds.append(child.text)
     return compounds
 
+def get_adjectives(token):
+    adjectives = []
+    for child in token.children:
+        if child.dep_ == "amod":
+            adjectives.append(child.text)
+    return adjectives
+
+
+def get_numbers(token):
+    numbers = []
+    for child in token.children:
+        if child.dep_ == "nummod":
+            numbers.append(child.text)
+    return numbers
+
+
+def get_determiners(token):
+    determiners = []
+    for child in token.children:
+        if child.dep_ == "det":
+            determiners.append(child.text)
+    return determiners
+
 def get_negations(token):
     for child in token.children:
         if child.dep_ == "neg":
             return True
     return False
 
-def token_to_entity(token):
+def token_to_entity(token,chunk_map):
+
+    p_noun_flag = token.pos_ == "PROPN"
+    name = chunk_map.get(token, token.text)
+
+    node_id = node_registry.get_or_create_prop_id(name) if p_noun_flag else node_registry.get_common_noun_id()
+
     entity = Entity(
-        text = token.text,
+        text = getLemma(token.text,upos="NOUN")[0],
+        id = node_id,
         compounds=get_compounds(token),
-        prep_phrases= test_search_prep_phrases(token)
+        adjectives=get_adjectives(token),
+        numbers=get_numbers(token),
+        determiners=get_determiners(token),
+        prep_phrases= test_search_prep_phrases(token,chunk_map)
     )
     return entity
 
-def get_subjs(token):
+def get_subjs(token,chunk_map):
     subjs = []
     for child in token.children:
         if child.dep_ in ("nsubj", "nsubjpass"):
             conjs = [child]
             get_conjuctions(child,conjs)
-            subjs = [token_to_entity(t) for t in conjs]
+            subjs = [token_to_entity(t,chunk_map) for t in conjs]
     return subjs
 
-def get_objs(token):
+def get_objs(token,chunk_map):
     dobjs = []
     iobjs = []
     for child in token.children:
         if child.dep_ in ("dobj","pobj"):
             conjs = [child]
             get_conjuctions(child,conjs)
-            dobjs = [token_to_entity(t) for t in conjs]
+            dobjs = [token_to_entity(t,chunk_map) for t in conjs]
 
         if child.dep_ in ("iobj"):
             conjs = [child]
             get_conjuctions(child,conjs)
-            iobjs = [token_to_entity(t) for t in conjs]
+            iobjs = [token_to_entity(t,chunk_map) for t in conjs]
 
     return dobjs,iobjs
 
-def get_attrs(token):
+def get_attrs(token,chunk_map):
     attrs = []
     for child in token.children:
         if child.dep_ in ("attr"):
             conjs = [child]
             get_conjuctions(child,conjs)
-            attrs = [token_to_entity(t) for t in conjs]
+            attrs = [token_to_entity(t,chunk_map) for t in conjs]
     return attrs
 
-def get_obj_comps(token):
+def get_obj_comps(token,chunk_map):
     attrs = []
     for child in token.children:
         if child.dep_ in ("xcomp"):
             conjs = [child]
             get_conjuctions(child,conjs)
-            attrs = [token_to_entity(t) for t in conjs]
+            attrs = [token_to_entity(t,chunk_map) for t in conjs]
     return attrs
 
 def is_predicate(token):
@@ -101,6 +135,8 @@ def is_predicate(token):
 def build_verb_frames(sentnece):
     frames = []
 
+    chunk_map = build_chunk_map(sentnece)
+
     for token in sentnece:
         if is_predicate(token):
 
@@ -116,31 +152,31 @@ def build_verb_frames(sentnece):
             for potential_verb in verbs:
                 if potential_verb.pos_ in ("VERB","AUX"):
                     verb = potential_verb
-                    subjs = get_subjs(verb) or subjs
+                    subjs = get_subjs(verb,chunk_map) or subjs
 
                     if (
                         not subjs
                         and verb.dep_ in {"advcl", "xcomp"}
                     ):
-                        subjs = get_subjs(verb.head)
+                        subjs = get_subjs(verb.head,chunk_map)
 
-                    new_dobjs,new_iobjs = get_objs(verb)
+                    new_dobjs,new_iobjs = get_objs(verb,chunk_map)
                     dobjs = new_dobjs or dobjs
                     iobjs = new_iobjs or iobjs
 
-                    attrs = get_attrs(verb) or attrs
-                    obj_comp = get_obj_comps(verb) or obj_comp
+                    attrs = get_attrs(verb,chunk_map) or attrs
+                    obj_comp = get_obj_comps(verb,chunk_map) or obj_comp
 
                     frames.append(
                         VerbFrame(
-                            verb.text + " "+ str(verb.dep_),
+                            verb = getLemma(verb.text,upos="VERB")[0],
                             negation=get_negations(verb),
                             subjects=subjs,
                             objects=dobjs,
                             i_objects=iobjs,
                             object_compliments=obj_comp,
                             attributes=attrs,
-                            prep_phrases=test_search_prep_phrases(verb)
+                            prep_phrases=test_search_prep_phrases(verb,chunk_map)
                         )
                     )
     return frames
