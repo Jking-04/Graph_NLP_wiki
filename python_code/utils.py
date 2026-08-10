@@ -1,8 +1,34 @@
 def build_chunk_map(sentence):
-    return {
-        chunk.root: chunk.text
-        for chunk in sentence.noun_chunks
-    }
+    all_spans = list(sentence.noun_chunks) + list(sentence.ents)
+    chunk_map = {}
+
+    for token in sentence:
+        sub_tree = set(token.subtree)
+
+        best_span = None
+        for span in all_spans:
+            if token in span:
+                if best_span is None or len(span) > len(best_span):
+                    best_span = span
+
+        if best_span is not None:
+            best_span = strip_non_subtree(best_span,sub_tree)
+        if best_span is not None:
+            chunk_map[token] = strip_det(best_span).text
+
+    return chunk_map
+
+def strip_non_subtree(span, subtree):
+    keep = [tok for tok in span if tok in subtree]
+    if not keep:
+        return None
+    return span.doc[keep[0].i : keep[-1].i + 1]
+
+def strip_det(span):
+    start = span.start
+    while start < span.end and span.doc[start].dep_ == "det":
+        start += 1
+    return span.doc[start:span.end]
 
 def iter_sentences(doc):
     for sentence in doc.sents:

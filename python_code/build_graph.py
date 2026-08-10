@@ -1,4 +1,4 @@
-from python_code.data_classes import Entity,VerbFrame
+from python_code.data_classes import Entity,VerbFrame,Node
 import networkx as nx
 from pyvis.network import Network
 
@@ -34,11 +34,11 @@ def find_all_entities(vf_list: list[VerbFrame]):
 
     return entities
 
-def add_node(graph:nx.digraph,entity_list:list[Entity]):
-    for ent in entity_list:
+def add_node(graph:nx.digraph,node_list:list[Node]):
+    for node in node_list:
         graph.add_node(
-            ent.id,
-            label = ent.node_name()
+            node.id,
+            label = node.label
         )
 
 def add_edge(graph:nx.digraph,origin_id,target_id,rel):
@@ -60,103 +60,57 @@ def build_relations(graph: nx.DiGraph, vf: VerbFrame):
     clause_type = determine_clause(vf)
 
     if clause_type == "SVC":
-        rel = vf.verb
         for subj in vf.subjects:
             for attr in vf.attributes:
-                add_edge(graph, subj.id, attr.id, rel)
+                add_edge(graph, subj.id, attr.id, vf.verb)
 
     elif clause_type == "SVOO":
-        subj = vf.subjects[0]
-        obj = vf.objects[0]
-        iobj = vf.i_objects[0]
-        rel = vf.verb
-
-        add_edge(graph, subj.id, obj.id, rel)
-        add_edge(graph, obj.id, iobj.id, "to")
-
-    elif clause_type == "SVOC":
-        subj = vf.subjects[0]
-        obj = vf.objects[0]
-        comp = vf.object_compliments[0]
-        rel = vf.verb
-
-        add_edge(graph, subj.id, obj.id, rel)
-        add_edge(graph, obj.id, comp.id, "complement")
-
-    elif clause_type == "SVO":
-        rel = vf.verb
-
         for subj in vf.subjects:
             for obj in vf.objects:
-                add_edge(graph, subj.id, obj.id, rel)
+                add_edge(graph, subj.id, obj.id, vf.verb)
+
+                for iobj in vf.i_objects:
+                    add_edge(graph, obj.id, iobj.id, "to")
+
+    elif clause_type == "SVOC":
+        for subj in vf.subjects:
+            for obj in vf.objects:
+                add_edge(graph, subj.id, obj.id, vf.verb)
+
+                for comp in vf.object_compliments:
+                    add_edge(graph, obj.id, comp.id, "complement")
+
+    elif clause_type == "SVO":
+        for subj in vf.subjects:
+            for obj in vf.objects:
+                add_edge(graph, subj.id, obj.id, vf.verb)
 
     elif clause_type == "SV":
-        subj = vf.subjects[0]
-
-        if not vf.prep_phrases:
-            return
-
-        for prep, entity in vf.prep_phrases:
-            rel = f"{vf.verb}_{prep}"
-            add_edge(graph, subj.id, entity.id, rel)
+        for subj in vf.subjects:
+            for prep, entity in vf.prep_phrases:
+                add_edge(
+                    graph,
+                    subj.id,
+                    entity.id,
+                    f"{vf.verb}_{prep}"
+                )
 
     else:
         print(f"not recognized clause_type {clause_type}")
 
-def build_graph_count(text):
-    nodes = set()
-    edges = []
-
-    for sentence in iter_sentences(text):
-        named_entities = sentence.ents
-        #allowed = ["PERSON","ORG"]
-
-        #filtered_entities = [ent for ent in named_entities if ent.label_ in allowed]
-        filtered_entities = named_entities
-        '''
-        for node in filtered_entities:
-            nodes.add(node.text.strip().casefold())
-            entity_map[node.root] = node.text.strip().casefold()
-        '''
-        
-        for token in sentence:
-            
-            if token.dep_ == "ROOT":
-
-                rel = getLemma(token.text,upos="VERB")[0] #lemmainflect seems to work much better for lemma
-                subj = None
-                obj = None
-
-
-                for child in (token.children):
-                    if child.dep_ in ("nsubj", "nsubjpass"):
-                        subj = child.text
-                                            
-                    elif child.dep_ in ("dobj", "pobj", "attr"):
-                        obj = child.text
-
-                if (subj and obj):
-                    new_edge = edge(subj,rel,obj)
-
-                    nodes.add(subj)
-                    nodes.add(obj)
-                    edges.append(new_edge)
-    return nodes,edges
-
-def build_graph_object(nodes,edges):
-    G = nx.DiGraph()
-    
-    for node in nodes:
-        G.add_node(node)
-
-    for edge in edges:
-        G.add_edge(edge.subj,edge.obj,label=edge.rel)
-
-    return G
+def build_entity_prep_relations(graph, entities):
+    for entity in entities:
+        for prep, target in entity.prep_phrases:
+            add_edge(
+                graph,
+                entity.id,
+                target.id,
+                prep
+            )
         
 def display_graph(graph):
 
-    g = Network(height = "800px",width = "800px",notebook=False)
+    g = Network(height = "800px",width = "800px",notebook=False,directed=True)
     g.toggle_drag_nodes(True)
     g.toggle_physics(False)
 

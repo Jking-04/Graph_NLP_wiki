@@ -3,12 +3,14 @@ from dataclasses import dataclass
 @dataclass
 class Entity:
     text:str
+    label:str
     id:int
 
     compounds:list
     adjectives:list
     numbers:list
     determiners:list
+    conjunctions: list
 
     prep_phrases:list[tuple]
 
@@ -33,6 +35,10 @@ class VerbFrame:
     attributes: list[Entity]
     prep_phrases:list[tuple]
 
+@dataclass
+class Node:
+    label:str
+    id: int
     
 
 
