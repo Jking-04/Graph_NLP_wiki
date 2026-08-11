@@ -58,16 +58,17 @@ def determine_clause(vf:VerbFrame):
 
 def build_relations(graph: nx.DiGraph, vf: VerbFrame):
     clause_type = determine_clause(vf)
+    label = f"{"not " if vf.negation else ""}{vf.verb}"
 
     if clause_type == "SVC":
         for subj in vf.subjects:
             for attr in vf.attributes:
-                add_edge(graph, subj.id, attr.id, vf.verb)
+                add_edge(graph, subj.id, attr.id, label)
 
     elif clause_type == "SVOO":
         for subj in vf.subjects:
             for obj in vf.objects:
-                add_edge(graph, subj.id, obj.id, vf.verb)
+                add_edge(graph, subj.id, obj.id, label)
 
                 for iobj in vf.i_objects:
                     add_edge(graph, obj.id, iobj.id, "to")
@@ -75,28 +76,48 @@ def build_relations(graph: nx.DiGraph, vf: VerbFrame):
     elif clause_type == "SVOC":
         for subj in vf.subjects:
             for obj in vf.objects:
-                add_edge(graph, subj.id, obj.id, vf.verb)
+                
+                add_edge(graph, subj.id, obj.id, label)
 
                 for comp in vf.object_compliments:
                     add_edge(graph, obj.id, comp.id, "complement")
-
     elif clause_type == "SVO":
-        for subj in vf.subjects:
-            for obj in vf.objects:
-                add_edge(graph, subj.id, obj.id, vf.verb)
-
+            for subj in vf.subjects:
+                for obj in vf.objects:
+                    add_edge(graph, subj.id, obj.id ,label)
     elif clause_type == "SV":
-        for subj in vf.subjects:
-            for prep, entity in vf.prep_phrases:
-                add_edge(
-                    graph,
-                    subj.id,
-                    entity.id,
-                    f"{vf.verb}_{prep}"
-                )
+        if not vf.prep_phrases:
+            for subj in vf.subjects:
+                add_edge(graph, subj.id, subj.id ,label)
+            
 
     else:
         print(f"not recognized clause_type {clause_type}")
+        return
+
+    # Direct verb-attached PPs
+    sources = vf.objects if vf.objects else vf.subjects
+
+
+    #attach verb level preps
+    if vf.objects:
+        for source in vf.objects:
+            for prep, entity in vf.prep_phrases:
+                add_edge(
+                    graph,
+                    source.id,
+                    entity.id,
+                    f"{prep}"
+                )
+    else:
+        for source in vf.subjects:
+            for prep, entity in vf.prep_phrases:
+                add_edge(
+                    graph,
+                    source.id,
+                    entity.id,
+                    f"{vf.verb}_{prep}"
+                    )
 
 def build_entity_prep_relations(graph, entities):
     for entity in entities:

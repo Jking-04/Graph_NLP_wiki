@@ -291,9 +291,6 @@ def find_deps(token,entity_map,dep_List):
 #_____________________________________________________
 
 def resolve_entity(entity:Entity,vf:VerbFrame):
-    role = determine_entity_role(entity,vf)
-
-    label = resolve_label(entity,role,vf)
 
     node = Node(
         label=entity.label,
@@ -301,30 +298,4 @@ def resolve_entity(entity:Entity,vf:VerbFrame):
     )
 
     return node
-
-def determine_entity_role(entity, vf):
-
-    if entity in vf.subjects:
-        return "subject"
-    elif entity in vf.objects:
-        return "object"
-    elif entity in vf.i_objects:
-        return "indirect_object"
-    elif entity in vf.object_compliments:
-        return "object_complement"
-    elif entity in vf.attributes:
-        return "attribute"
-
-    for prep, target in vf.prep_phrases:
-        if target is entity:
-            return f"prep:{prep}"
-
-    return None
-
-def resolve_label(entity:Entity,role:str,vf:VerbFrame):
-    label =  entity.node_name()
-    return label
-
-def determine_entity_type(entity:Entity,vf:VerbFrame):
-    pass
 
